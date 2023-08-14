@@ -24,7 +24,7 @@ A full hearthy chocolaty arch linux is a 3 step process:
 
 Warning, EFI only for now.
 
-Boot into an [Arch Linux ISO](https://archlinux.org/download/), [Connect to the internet](https://wiki.archlinux.org/title/installation_guide#Connect_to_the_internet), then clone, download, scp copy, what ever works for you, at least the `chocolate.sh` script. Make sure it is executable then run:
+Boot into an [Arch Linux ISO](https://archlinux.org/download/), [Connect to the internet](https://wiki.archlinux.org/title/installation_guide#Connect_to_the_internet), then clone, download, scp copy, what ever works for you, **inside of /root/**, at least the `chocolate.sh` script. Make sure it is executable then run:
 
     ./chocolate.sh --drive sda
 
