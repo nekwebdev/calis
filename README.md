@@ -47,6 +47,7 @@ This will get you started with a list of all the available flags and their defau
                  Chocolate expects your partitions to be mounted in /mnt
     --onlypart   Only format, partition and mount the drive.
     --swap       Swap partition size in G/M, defaults to '2G'
+    --swapfile   Create a swapfile instead of a partition.
     --root       Root partition size in G/M, defaults to all remaining space
     --data       Create ext4 partition with the remaining space in /mnt/data.
                  --root must also be set to use data, defaults to off.
@@ -54,6 +55,7 @@ This will get you started with a list of all the available flags and their defau
     --btrfs      Use the btrfs filesystem with @root, @home, @var_log and @snapshots subvolumes, defaults to off.
     --snapper    Install and setup snapper for managing btrfs automatic snapshots, defaults to off.
     --prober     Setup grub to use os-prober for multiboot, defaults to off.
+    --efi        Mount an existing windows EFI partition before creating the grub config.
 
     ############ System setup:
 

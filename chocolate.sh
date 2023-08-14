@@ -400,7 +400,7 @@ function checkRootAndNetwork() {
   sed -i "s/^#ParallelDownloads = 5$/ParallelDownloads = 15/" /etc/pacman.conf
   _echo_success
   
-  pacman --noconfirm --needed -Sy archlinux-keyring expect dialog dmidecode || _exit_with_message "Are you root, on Archlinux ISO and with an internet connection?"
+  pacman --noconfirm --needed -Sy archlinux-keyring expect dialog dmidecode pacman-contrib || _exit_with_message "Are you root, on Archlinux ISO and with an internet connection?"
   _echo_success
 }
 
@@ -592,8 +592,8 @@ function btrfsSubvols() {
 
   # https://wiki.archlinux.org/title/User:Altercation/Bullet_Proof_Arch_Install#Create_and_mount_BTRFS_subvolumes
   # set btrfs mount options
-  o=defaults,x-mount.mkdir
-  o_btrfs=$o,compress=lzo,ssd,noatime
+  local o=defaults,x-mount.mkdir
+  local o_btrfs=$o,compress=lzo,ssd,noatime
 
   _echo_step_info "Mount btrfs subvolumes under top-level"; echo
   mount -t btrfs -o subvol=@root,$o_btrfs LABEL=system /mnt
@@ -640,7 +640,12 @@ function essentialPkgs() {
   arch-chroot /mnt pacman -Qe > /mnt/var/log/chocolate_packages_list_01_pacstrap.log
 
   _echo_step_info "Copy pacman mirrorlist to the new system"
-  cp -f /etc/pacman.d/mirrorlist /mnt/etc/pacman.d
+  cp -f /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
+  cp -f /etc/pacman.d/mirrorlist.bak /mnt/etc/pacman.d/mirrorlist.bak
+  _echo_success
+
+  _echo_step_info "Set parallel downloads to 15 in new system"
+  sed -i "s/^#ParallelDownloads = 5$/ParallelDownloads = 15/" /mnt/etc/pacman.conf
   _echo_success
 
   _echo_step_info "Install userspace utilities for the management of file systems"; echo
@@ -693,11 +698,13 @@ function configureSys() {
   # setup swap file now
   # https://wiki.archlinux.org/title/Swap#Swap_file
   if $CHOCO_SWAPFILE; then
+    _echo_step_info "Setting up /swapfile of $CHOCO_SWAP"; echo
     arch-chroot /mnt fallocate -l "$CHOCO_SWAP" /swapfile
     arch-chroot /mnt chmod 0600 /swapfile
     arch-chroot /mnt mkswap -U clear /swapfile
     arch-chroot /mnt swapon /swapfile
     echo "/swapfile none swap defaults 0 0" >> /mnt/etc/fstab
+    _echo_success
   fi
 
   # https://wiki.archlinux.org/title/installation_guide#Time_zone
@@ -897,9 +904,15 @@ function installVanilla() {
   _echo_step "Installation"; echo; echo
 
   # https://wiki.archlinux.org/title/installation_guide#Select_the_mirrors
-  _echo_step_info "Select the mirrors in $CHOCO_MIRRORS"; echo
-  [[ ! -f .reflector_done ]] && reflector --country "$CHOCO_MIRRORS" --latest 20 --sort rate --save /etc/pacman.d/mirrorlist --protocol https --download-timeout 5
-  touch .reflector_done
+  # _echo_step_info "Select the mirrors in $CHOCO_MIRRORS"; echo
+  # [[ ! -f .reflector_done ]] && reflector --country "$CHOCO_MIRRORS" --latest 20 --sort rate --save /etc/pacman.d/mirrorlist --protocol https --download-timeout 5
+  # touch .reflector_done
+  # _echo_success
+
+  # different method
+  _echo_step_info "Select fastest 10 mirrors"; echo
+  cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+  rankmirrors -n 10 /etc/pacman.d/mirrorlist.bak > /etc/pacman.d/mirrorlist
   _echo_success
 
   # https://wiki.archlinux.org/title/installation_guide#Install_essential_packages
@@ -1022,12 +1035,28 @@ function vgaDrivers() {
     if $CHOCO_NVIDIA; then
       # https://wiki.archlinux.org/title/NVIDIA
       _echo_step_info "Install NVIDIA prorietary gpu drivers"; echo
-      installChrootPkg nvidia nvidia-utils nvidia-dkms nvidia-settings 
+      installChrootPkg linux-headers nvidia-dkms nvidia-utils nvidia-settings 
       _echo_success
 
-      _echo_step_info "Add NVIDIA modules to mkinitcpio.conf"; echo
+      _echo_step_info "Add nvidia_drm to bootloader"; echo
+      sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& nvidia_drm.modeset=1/' /mnt/etc/default/grub
+      _echo_success
+
+      _echo_step_info "Generate new grub config"; echo
+      arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+      _echo_success
+
+      _echo_step_info "Add NVIDIA modules to mkinitcpio and generate /boot/initramfs-custom.img"; echo
       sed -i "s/^MODULES=(/&nvidia nvidia_modeset nvidia_uvm nvidia_drm /" /mnt/etc/mkinitcpio.conf
-      arch-chroot /mnt mkinitcpio -p "$CHOCO_KERNEL"
+      arch-chroot /mnt mkinitcpio --config /etc/mkinitcpio.conf --generate /boot/initramfs-custom.img
+      _echo_success
+
+      _echo_step_info "Add nvidia-drm settings to modeprobe.d"; echo
+      echo "options nvidia-drm modeset=1" > /etc/modprobe.d/nvidia.conf
+      echo 'options nvidia "NVreg_UsePageAttributeTable=1"' >> /etc/modprobe.d/nvidia.conf
+      echo 'options nvidia "NVreg_PreserveVideoMemoryAllocations=1"' >> /etc/modprobe.d/nvidia.conf
+      echo 'options nvidia "NVreg_TemporaryFilePath=/var/tmp"' >> /etc/modprobe.d/nvidia.conf
+      echo 'options nvidia "NVreg_EnableS0ixPowerManagement=1"' >> /etc/modprobe.d/nvidia.conf
       _echo_success
 
       _echo_step_info "Create pacman hook to update nvidia module in initcpio"
@@ -1141,6 +1170,12 @@ function main() {
   extraScript "$@"
 
   snapperConfig
+
+  if [[ -n $CHOCO_EFI ]]; then
+    _echo_step_info "Unmounting /dev/${CHOCO_EFI} from /boot/efi in chroot"; echo
+    arch-chroot /mnt umount /boot/efi
+    _echo_success
+  fi
 
   _echo_exit_chocolate
 }
