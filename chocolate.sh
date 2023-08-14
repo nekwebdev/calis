@@ -11,12 +11,14 @@ CHOCO_DRIVE="" # name of the drive: sda, vda, nvme0n1 etc...
 CHOCO_PARTITION=true # do paritioning
 CHOCO_PARTONLY=false # only do partitioning
 CHOCO_SWAP="2G" # size of swap partition, use G or M: 3G or 2000M
+CHOCO_SWAPFILE=false # use a swapfile
 CHOCO_ROOT="" # size of root partition, use G or M: 15G or 42500M
 CHOCO_DATA=false # create a data ext4 partition mounted in /data that uses the rest of the available space on the disk
 CHOCO_LUKS=false # LUKS encrypt swap and root partitions
 CHOCO_BTRFS=false # use btrfs for root, @root, @home, @var_log and @snapshots subvolumes will be setup
 CHOCO_SNAPPER=false # configure snapper for automatic snapshots of the @root subvolume.
 CHOCO_PROBER=false # probe for other os when configuring grub
+CHOCO_EFI="" # windows efi partition to mount to /boot/efi in chroot for dual boot
 
 # system
 CHOCO_ZEN=false # use the zen kernel
@@ -53,9 +55,9 @@ function displayHelp() {
     echo "    chocolate.sh"
     echo "    chocolate.sh --config settings.conf"
     echo "    chocolate.sh --drive nvme0n1 [--nopart] [--onlypart]" 
-    echo "                [--swap] $CHOCO_SWAP [--root] 1000M [--data]"
+    echo "                [--swap] $CHOCO_SWAP [--swapfile] [--root] 1000M [--data]"
     echo "                [--luks] [--btrfs] [--snapper] [--prober]"
-    echo "                [--zen] [--lts]"
+    echo "                [--efi] sda1 [--zen] [--lts]"
     echo "                [--mirrors] $CHOCO_MIRRORS [--timezone] $CHOCO_REGION"
     echo "                [--keymap] $CHOCO_KEYMAP [--lang] $CHOCO_LANG [--locale] $CHOCO_LOCALE"
     echo "                [--vfont] $CHOCO_VFONT [--fontmap] $CHOCO_FONTMAP"
@@ -73,6 +75,7 @@ function displayHelp() {
     echo "                 Chocolate expects your partitions to be mounted in /mnt"
     echo "    --onlypart   Only format, partition and mount the drive."
     echo "    --swap       Swap partition size in G/M, defaults to '$CHOCO_SWAP'"
+    echo "    --swapfile   Create a swapfile instead of a partition."
     echo "    --root       Root partition size in G/M, defaults to all remaining space"
     echo "    --data       Create ext4 partition with the remaining space in /mnt/data."
     echo "                 --root must also be set to use data, defaults to off."
@@ -80,6 +83,7 @@ function displayHelp() {
     echo "    --btrfs      Use the btrfs filesystem with @root, @home, @var_log and @snapshots subvolumes, defaults to off."
     echo "    --snapper    Install and setup snapper for managing btrfs automatic snapshots, defaults to off."
     echo "    --prober     Setup grub to use os-prober for multiboot, defaults to off."
+    echo "    --efi        Mount an existing windows EFI partition before creating the grub config."
     echo
     echo "    ############ System setup:"
     echo
@@ -251,7 +255,7 @@ function _echo_banner() {
   $CHOCO_XORG && add_text="$add_text * xorg-server"
   $CHOCO_NVIDIA && add_text="$add_text * NVIDIA prorietary drivers" || $CHOCO_XORG && add_text="$add_text * opensource vga drivers"
   $CHOCO_EXTRA && add_text="$add_text * extra script"
-  [[ -n $add_text ]] && _echo_middle "Post vanilla$add_text" && echo
+  [[ -n $add_text ]] && _echo_middle "Post vanilla:$add_text" && echo
   _echo_middle "* This is the way *"
   echo
 }
@@ -292,6 +296,7 @@ function parseArguments() {
         else
           _exit_with_message "when using --swap a size must be specified. Example: '--swap 4G'"
         fi ;;
+      --swapfile) CHOCO_SWAPFILE=true; shift ;;
       --root)
         if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
           CHOCO_ROOT=$2; shift
@@ -303,6 +308,12 @@ function parseArguments() {
       --btrfs) CHOCO_BTRFS=true; shift ;;
       --snapper) CHOCO_SNAPPER=true; shift ;;
       --prober) CHOCO_PROBER=true; shift ;;
+      --efi)
+        if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
+          CHOCO_EFI=$2; shift
+        else
+          _exit_with_message "when using --efi a drive needs to be specified. Example: '--efi sda1'"
+        fi ;;
       --zen) CHOCO_ZEN=true; shift ;;
       --lts) CHOCO_LTS=true; shift ;;
       --mirrors)
@@ -389,15 +400,16 @@ function checkRootAndNetwork() {
   sed -i "s/^#ParallelDownloads = 5$/ParallelDownloads = 15/" /etc/pacman.conf
   _echo_success
   
-  pacman --noconfirm --needed -Sy archlinux-keyring expect dialog dmidecode || _exit_with_message \
-  "Are you root, on Archlinux ISO and with an internet connection?"
+  pacman --noconfirm --needed -Sy archlinux-keyring expect dialog dmidecode || _exit_with_message "Are you root, on Archlinux ISO and with an internet connection?"
   _echo_success
 }
 
 function getPasswords() {
   _echo_step "System disks list:"; echo
   echo
-  lsblk -o name,size,type,partlabel | grep "disk"
+  local grep_target="disk"
+  ! $CHOCO_PARTITION && grep_target="part"
+  lsblk -o name,size,type,partlabel,mountpoints | grep "$grep_target"
   echo
 	tput setaf 1 # 1 = red
   read -p "Review the settings, chocolate will ask for passwords next, ready? [y/N] " -n 1 -r
@@ -430,7 +442,9 @@ function getPasswords() {
 function lastChance() {
   _echo_step "System disks list:"; echo
   echo
-  lsblk -o name,size,type,partlabel | grep "disk"
+  local grep_target="disk"
+  ! $CHOCO_PARTITION && grep_target="part"
+  lsblk -o name,size,type,partlabel,mountpoints | grep "$grep_target"
   echo
 	tput setaf 1 # 1 = red
   local warn_text=""
@@ -458,9 +472,11 @@ function partitionDisk() {
   sgdisk --new=1:0:+550MiB --typecode=1:ef00 --change-name=1:EFI-NIX "$1"
   _echo_success
 
-  _echo_step_info "Create $CHOCO_SWAP swap partition"; echo
-  sgdisk --new=2:0:+"$CHOCO_SWAP"iB --typecode=2:8200 --change-name=2:"$($CHOCO_LUKS && echo 'cryptswap' || echo 'swap')" "$1"
-  _echo_success
+  if ! $CHOCO_SWAPFILE; then
+    _echo_step_info "Create $CHOCO_SWAP swap partition"; echo
+    sgdisk --new=2:0:+"$CHOCO_SWAP"iB --typecode=2:8200 --change-name=2:"$($CHOCO_LUKS && echo 'cryptswap' || echo 'swap')" "$1"
+    _echo_success
+  fi
 
   # shellcheck disable=SC2015
   [[ -n $CHOCO_ROOT ]] && local root_text="Create $CHOCO_ROOT root partition" || local root_text="Create root partition with the remaining space"
@@ -532,9 +548,11 @@ function formatDisk() {
   fi
   _echo_success
 
-  _echo_step_info "Format swap volume"; echo
-  mkswap -L swap "$SWAP_LABEL"
-  _echo_success
+  if ! $CHOCO_SWAPFILE; then
+    _echo_step_info "Format swap volume"; echo
+    mkswap -L swap "$SWAP_LABEL"
+    _echo_success
+  fi
 
   if $CHOCO_DATA; then
     _echo_step_info "Format data partition to ext4"; echo
@@ -599,9 +617,11 @@ function mountParts() {
   mount LABEL=EFI-NIX /mnt/boot
   _echo_success; echo
 
-  _echo_step_info "Enable swap volume"
-  swapon -L swap
-  _echo_success; echo
+  if ! $CHOCO_SWAPFILE; then
+    _echo_step_info "Enable swap volume"
+    swapon -L swap
+    _echo_success; echo
+  fi
 
   if $CHOCO_DATA; then
     _echo_step_info "Mount data partition to /mnt/data"
@@ -613,7 +633,7 @@ function mountParts() {
 
 function essentialPkgs() {
   _echo_step_info "pacstrap with base $CHOCO_KERNEL linux-firmware"; echo
-  pacstrap /mnt base "$CHOCO_KERNEL" linux-firmware
+  pacstrap -K /mnt base "$CHOCO_KERNEL" linux-firmware
   _echo_success
 
   # export a package list at current step
@@ -668,6 +688,16 @@ function configureSys() {
     _echo_step_info "Fix cryptswap LABEL in fstab"; echo
     sed -i s+LABEL=swap+/dev/mapper/swap+ /mnt/etc/fstab
     _echo_success
+  fi
+
+  # setup swap file now
+  # https://wiki.archlinux.org/title/Swap#Swap_file
+  if $CHOCO_SWAPFILE; then
+    arch-chroot /mnt fallocate -l "$CHOCO_SWAP" /swapfile
+    arch-chroot /mnt chmod 0600 /swapfile
+    arch-chroot /mnt mkswap -U clear /swapfile
+    arch-chroot /mnt swapon /swapfile
+    echo "/swapfile none swap defaults 0 0" >> /mnt/etc/fstab
   fi
 
   # https://wiki.archlinux.org/title/installation_guide#Time_zone
@@ -760,8 +790,18 @@ function configureSys() {
   installChrootPkg dosfstools e2fsprogs efibootmgr
   _echo_success
 
+  # check if we need to mount an efi partition
+  local efi_dir="/boot"
+  if [[ -n $CHOCO_EFI ]]; then
+    _echo_step_info "Mounting /dev/${CHOCO_EFI} to /boot/efi in chroot"; echo
+    arch-chroot /mnt mkdir /boot/efi
+    arch-chroot /mnt mount /dev/"$CHOCO_EFI" /boot/efi
+    efi_dir="/boot/efi"
+    _echo_success
+  fi
+
   _echo_step_info "Run grub-install"; echo
-  arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+  arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory="$efi_dir" --bootloader-id=GRUB
   _echo_success
 
   if $CHOCO_LUKS; then
@@ -782,11 +822,33 @@ function configureSys() {
   arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
   _echo_success
 
+  # create grub pacman hooks
+#   _echo_step_info "Create pacman hook to recreate bootloader on grub updates"; echo
+#   mkdir -p /mnt/usr/share/libalpm/hooks
+#   cat <<EOF > /mnt/usr/share/libalpm/hooks/grub.hook 
+# [Trigger]
+# Operation = Install
+# Operation = Upgrade
+# Operation = Remove
+# Type = File
+# Target = usr/lib/modules/*/vmlinuz
+
+# [Action]
+# Description = Updating GRUB Config
+# Depends = grub
+# When = PostTransaction
+# Exec = /bin/sh -c "/usr/bin/grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB && /usr/bin/grub-mkconfig -o /boot/grub/grub.cfg" 
+# Exec = /usr/bin/grub-mkconfig -o /boot/grub/grub.cfg
+# EOF
+
+
+
   # https://wiki.archlinux.org/title/System_backup#Snapshots_and_/boot_partition
   # https://wiki.archlinux.org/title/Pacman#Hooks
-  _echo_step_info "Create pacman hook to backup /boot"; echo
-  mkdir -p /mnt/usr/share/libalpm/hooks
-  cat <<EOF > /mnt/usr/share/libalpm/hooks/50-bootbackup.hook 
+  if $CHOCO_BTRFS; then
+    _echo_step_info "Create pacman hook to backup /boot"; echo
+    mkdir -p /mnt/usr/share/libalpm/hooks
+    cat <<EOF > /mnt/usr/share/libalpm/hooks/50-bootbackup.hook 
 [Trigger]
 Operation = Upgrade
 Operation = Install
@@ -800,7 +862,8 @@ Description = Backing up /boot...
 When = PostTransaction
 Exec = /usr/bin/rsync -a --delete /boot /.bootbackup
 EOF
-  _echo_success
+    _echo_success
+  fi
 }
 
 function installVanilla() {
@@ -1082,24 +1145,27 @@ function main() {
   _echo_exit_chocolate
 }
 
-# source config file for default values
-[[ -f $CHOCO_CONFIG ]] && source "$CHOCO_CONFIG"
-
 # update user variables from command line arguments
 parseArguments "$@"
 
+# source config file for default values
+[[ -f $CHOCO_CONFIG ]] && source "$CHOCO_CONFIG"
+
 # check arguments sanity
 # check for --drive being set
+
+$CHOCO_PARTONLY && ! $CHOCO_PARTITION && _exit_with_message "how do you want to only run partitioning with --onlypart and also skip partitioning with --nopart. More hot coco maybe?"
+
+[[ -n $CHOCO_DRIVE ]] && CHOCO_DRIVE="/dev/$CHOCO_DRIVE"
+
+! $CHOCO_PARTITION && CHOCO_DRIVE="your drive"
+
 if [[ -z $CHOCO_DRIVE ]]; then
   echo
   lsblk -o name,size,type,label,partlabel
   echo
   _exit_with_message "--drive is required, for example '--drive nvme0n1"
 fi
-
-$CHOCO_PARTONLY && ! $CHOCO_PARTITION && _exit_with_message "how do you want to only run partitioning with --onlypart and also skip partitioning with --nopart. More hot coco maybe?"
-
-[[ -n $CHOCO_DRIVE ]] && CHOCO_DRIVE="/dev/$CHOCO_DRIVE"
 
 # if CHOCO_DATA set and not CHOCO_ROOT throw error
 # shellcheck disable=SC2015
