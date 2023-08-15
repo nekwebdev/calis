@@ -81,7 +81,6 @@ This will get you started with a list of all the available flags and their defau
     --nvidia     Use proprietary NVIDIA drivers, defaults to off.
     --extra      Run an extra script chrooted as root in /mnt at the end, defaults to off.
                  All arguments given to chocolate.sh will be passed to that script.
-    --pkgs       Path to packages csv file for the extra script, defaults to '/root/packages.csv'.
 
 **NOTE:** On an Arch Linux based system you can run `build.sh` to build an Arch Linux ISO with the scripts copied in /root and with a password of `root` set for the root user so you can ssh directly into the system and get things going in one command:
 
@@ -133,9 +132,9 @@ This will get you started with a list of all the available flags and their defau
 
 ## Extras
 
-When using the `--extra` flag the `extra.sh` and `packages.csv` files will be copied over to the new system and the script will be run as root in `arch-chroot /mnt`.
+When using the `--extra` flag the `extra.sh` file will be copied over to the new system and a new privileged user will be created along with a few tweaks.
 
-All flags given to `chocolate.sh` will be passed to that extra script, this opens a lot of options for your custom `extra.sh`.
+All flags given to `chocolate.sh` can be passed to that extra script, this opens a lot of options for your custom `extra.sh`.
 
 It focuses on what needs to happen after a vanilla install:
 
