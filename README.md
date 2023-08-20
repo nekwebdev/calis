@@ -4,6 +4,8 @@
 
 ## Yet another install script?
 
+WIP: need a rewrite but 95% of whats here still holds true.
+
 Short awnser yes, long one is that I could not find an installer that did just what I wanted, and they all did either waaay too much like alis or not enough like most others, even the official one. So here is yet another arch linux vanilla installer, but with cocoa inside!
 
 Objective is to install arch linux without going throuh dozens of lines of configuration for a script. Defaults are sensible and using flags can easily customize it to your liking.

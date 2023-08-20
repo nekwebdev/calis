@@ -41,10 +41,8 @@ CHOCO_XORG=false # install xorg-server with vga drivers
 CHOCO_NVIDIA=false # use NVIDIA proprietary drivers
 CHOCO_EXTRA=false # run extra configuration and create a privileged user.
 CHOCO_USER="" # will ask if left empty
+CHOCO_DOTS="" # url for bare git dotfiles directory.
 CHOCO_CONFIG="" # specify a config file path
-
-# copy local repository for dotfiles in extra.sh
-CHOCO_DEV=false
 
 ###### => files templates ######################################################
 # exmple file templates
@@ -81,6 +79,7 @@ function displayHelp() {
     echo "                [--vfont] $CHOCO_VFONT [--fontmap] $CHOCO_FONTMAP"
     echo "                [--hostname] $CHOCO_HOSTNAME"
     echo "                [--aur] paru [--vm] [--xorg] [--nvidia] [--extra] [--user] username"
+    echo "                [--dots] url"
     echo
     echo "  Options:"
     echo "    -h --help    Show this screen."
@@ -127,9 +126,9 @@ function displayHelp() {
     echo "    --nvidia     Use proprietary NVIDIA drivers, defaults to off."
     echo "    --extra      Create a user with proper xdg directories and extra configuration."
     echo "    --user       Username to use, defaults to prompting it."
+    echo "    --dots       URL for bare git dotfiles directory."
     echo "    --pkgs       csv file for the extra script."
     echo
-    exit 0
 }
 
 ###### => echo helpers #########################################################
@@ -142,7 +141,8 @@ function _echo_blanks() { local cnt=0;while [ $cnt -lt "$1" ];do printf ' ';(( c
 # _echo_title() outputs a title padded by =, in yellow (3).
 function _echo_title() {
 	local title=$1
-	local ncols=$(tput cols)
+  local ncols
+	ncols=$(tput cols)
 	local nequals=$(((ncols-${#title})/2-1))
 	tput setaf 3 # 3 = yellow
 	_echo_equals "$nequals"
@@ -155,7 +155,8 @@ function _echo_title() {
 # _echo_middle() outputs a centered text padded by ' ', in yellow (3).
 function _echo_middle() {
 	local title=$1
-	local ncols=$(tput cols)
+  local ncols
+	ncols=$(tput cols)
 	local nequals=$(((ncols-${#title})/2-1))
 	tput setaf 3 # 3 = yellow
 	_echo_blanks "$nequals"
@@ -204,6 +205,9 @@ function _echo_banner() {
   local boot_text="$FIX_LENGTH_TXT"
 
   _fix_length "* $CHOCO_SWAP swap partition"
+  if $CHOCO_SWAPFILE; then
+    _fix_length "* $CHOCO_SWAP swap file"
+  fi
   local swap_text="$FIX_LENGTH_TXT"
 
   local root_text="ext4 root partition"
@@ -272,6 +276,7 @@ function _echo_banner() {
   _echo_middle "Kernel: $CHOCO_KERNEL * Hostname: $CHOCO_HOSTNAME * Keymap: $CHOCO_KEYMAP * Mirrors: $CHOCO_MIRRORS"
   _echo_middle "Timezone: $CHOCO_REGION * Lang: $CHOCO_LANG * Locale: $CHOCO_LOCALE * Vfont: $CHOCO_VFONT * Fontmap: $CHOCO_FONTMAP"
   echo
+  #TODO cleanup drivers
   local add_text=""
   $CHOCO_SNAPPER && add_text="$add_text * snapper"
   $CHOCO_VM && add_text="$add_text * vm drivers"
@@ -300,7 +305,7 @@ function _echo_exit_chocolate() {
 function parseArguments() {
   while (( "$#" )); do
     case "$1" in
-      -h|--help) displayHelp; shift ;;
+      -h|--help) displayHelp; exit 0 ;;
       --config)
         if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]] && [[ -f "$2" ]]; then
           CHOCO_CONFIG=$2; shift
@@ -403,7 +408,10 @@ function parseArguments() {
         if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
           CHOCO_USER=$2; shift
         fi ;;
-      --dev) CHOCO_DEV=true; shift ;;
+      --dots)
+        if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
+          CHOCO_DOTS=$2; shift
+        fi ;;
       --*|-*=) shift ;; # unsupported flags ignored to be passed to extra
       *) shift ;;
     esac
@@ -442,7 +450,8 @@ function getPasswords() {
   [[ ! $REPLY =~ ^[Yy]$ ]] && echo && _exit_with_message "Fair enough..."
   # prompt user for root password
   ROOT_PWD=$(dialog --passwordbox "Enter a password for the root user." 8 60 3>&1 1>&2 2>&3 3>&1) || exit 1
-  local ROOT_PWD2=$(dialog --no-cancel --passwordbox "Retype root password." 8 60 3>&1 1>&2 2>&3 3>&1)
+  local ROOT_PWD2
+  ROOT_PWD2=$(dialog --no-cancel --passwordbox "Retype root password." 8 60 3>&1 1>&2 2>&3 3>&1)
   while ! [ "$ROOT_PWD" = "$ROOT_PWD2" ]; do
 		unset ROOT_PWD2
 		ROOT_PWD=$(dialog --no-cancel --passwordbox "No match, Enter root password again." 8 60 3>&1 1>&2 2>&3 3>&1)
@@ -453,7 +462,8 @@ function getPasswords() {
   if $CHOCO_LUKS; then
     # prompt user for LUKS encryption password
     LUKS_PWD=$(dialog --passwordbox "Enter a password for LUKS encryption." 8 60 3>&1 1>&2 2>&3 3>&1) || exit 1
-    local LUKS_PWD2=$(dialog --no-cancel --passwordbox "Retype LUKS encryption password." 8 60 3>&1 1>&2 2>&3 3>&1)
+    local LUKS_PWD2
+    LUKS_PWD2=$(dialog --no-cancel --passwordbox "Retype LUKS encryption password." 8 60 3>&1 1>&2 2>&3 3>&1)
     while ! [ "$LUKS_PWD" = "$LUKS_PWD2" ]; do
       unset LUKS_PWD2
       LUKS_PWD=$(dialog --no-cancel --passwordbox "No match, Enter LUKS encryption password again." 8 60 3>&1 1>&2 2>&3 3>&1)
@@ -542,13 +552,15 @@ expect eof
 EOD
   unset LUKS_PWD
   _echo_success
-
-  _echo_step_info "Bring up encrypted swap"; echo
-  cryptsetup open --type plain --key-file /dev/urandom /dev/disk/by-partlabel/cryptswap swap
-  _echo_success
-
   ROOT_LABEL="/dev/mapper/system"
-  SWAP_LABEL="/dev/mapper/swap"
+
+  if ! $CHOCO_SWAPFILE; then
+    _echo_step_info "Bring up encrypted swap"; echo
+    cryptsetup open --type plain --key-file /dev/urandom /dev/disk/by-partlabel/cryptswap swap
+    _echo_success
+    SWAP_LABEL="/dev/mapper/swap"
+  fi
+
 }
 
 function formatDisk() {
@@ -1074,10 +1086,12 @@ function vgaDrivers() {
       _echo_step_info "Add nvidia-drm settings to modeprobe.d"; echo
       local nvidia_conf=/mnt/etc/modprobe.d/nvidia.conf
       echo "options nvidia-drm modeset=1" > "$nvidia_conf"
-      echo 'options nvidia "NVreg_UsePageAttributeTable=1"' >> "$nvidia_conf"
-      echo 'options nvidia "NVreg_PreserveVideoMemoryAllocations=1"' >> "$nvidia_conf"
-      echo 'options nvidia "NVreg_TemporaryFilePath=/var/tmp"' >> "$nvidia_conf"
-      echo 'options nvidia "NVreg_EnableS0ixPowerManagement=1"' >> "$nvidia_conf"
+      {
+        echo 'options nvidia "NVreg_UsePageAttributeTable=1"'
+        echo 'options nvidia "NVreg_PreserveVideoMemoryAllocations=1"'
+        echo 'options nvidia "NVreg_TemporaryFilePath=/var/tmp"'
+        echo 'options nvidia "NVreg_EnableS0ixPowerManagement=1"'
+      } >> "$nvidia_conf"
       _echo_success
 
       _echo_step_info "Create pacman hook to update nvidia module in initcpio"
@@ -1143,14 +1157,15 @@ function installXorg() {
 function configureXdgUserDirs() {
   _echo_step "Configure xdg-user-dirs"; echo
   _echo_step "  (Configure xdg-user-dirs defaults)"
-  sed -i "/DESKTOP/d" /mnt/etc/xdg/user-dirs.defaults
-  sed -i "s/Downloads/downloads/" /mnt/etc/xdg/user-dirs.defaults
-  sed -i "s+Templates+documents/templates+" /mnt/etc/xdg/user-dirs.defaults
-  sed -i "/PUBLICSHARE/d" /mnt/etc/xdg/user-dirs.defaults
-  sed -i "s/Documents/documents/" /mnt/etc/xdg/user-dirs.defaults
-  sed -i "s+Music+documents/music+" /mnt/etc/xdg/user-dirs.defaults
-  sed -i "s+Pictures+documents/pictures+" /mnt/etc/xdg/user-dirs.defaults
-  sed -i "s+Videos+documents/videos+" /mnt/etc/xdg/user-dirs.defaults
+  local user_dirs=/mnt/etc/xdg/user-dirs.defaults
+  sed -i "/DESKTOP/d" $user_dirs
+  sed -i "s/Downloads/downloads/" $user_dirs
+  sed -i "s+Templates+documents/templates+" $user_dirs
+  sed -i "/PUBLICSHARE/d" $user_dirs
+  sed -i "s/Documents/documents/" $user_dirs
+  sed -i "s+Music+documents/music+" $user_dirs
+  sed -i "s+Pictures+documents/pictures+" $user_dirs
+  sed -i "s+Videos+documents/videos+" $user_dirs
   _echo_success
 
   _echo_step "  (Add .local/src folder to /etc/skel)"
@@ -1168,8 +1183,10 @@ function configurePrivilegedUser() {
       CHOCO_USER=$(dialog --no-cancel --inputbox "Username not valid. Give a username beginning with a letter, with only lowercase letters, - or _." 10 60 3>&1 1>&2 2>&3 3>&1)
     done
   fi
-  local pass1=$(dialog --no-cancel --passwordbox "Enter a password for $CHOCO_USER." 10 60 3>&1 1>&2 2>&3 3>&1)
-  local pass2=$(dialog --no-cancel --passwordbox "Retype $CHOCO_USER password." 10 60 3>&1 1>&2 2>&3 3>&1)
+  local pass1
+  local pass2
+  pass1=$(dialog --no-cancel --passwordbox "Enter a password for $CHOCO_USER." 10 60 3>&1 1>&2 2>&3 3>&1)
+  pass2=$(dialog --no-cancel --passwordbox "Retype $CHOCO_USER password." 10 60 3>&1 1>&2 2>&3 3>&1)
   while ! [ "$pass1" = "$pass2" ]; do
     unset pass2
     pass1=$(dialog --no-cancel --passwordbox "Passwords do not match for $CHOCO_USER.\\n\\nEnter password again." 10 60 3>&1 1>&2 2>&3 3>&1)
@@ -1245,8 +1262,18 @@ function extraConfig() {
 
   configurePrivilegedUser
 
-  cp -f extra.sh /mnt/home/$CHOCO_USER/
+  _echo_step "Copy and setup post install chocodots script"; echo
+  _echo_step "  (Copy script)"
+  local dotfile=/mnt/home/"$CHOCO_USER"/chocodots.sh
+  cp -f chocodots.sh "$dotfile"
+  chmod +x "$dotfile"
+  _echo_success
 
+  if [[ -n $CHOCO_DOTS ]]; then
+    _echo_step "  (Add dotfiles repository url)"
+    sed -i "s/.*CHOCO_DOTS=.*/CHOCO_DOTS=\"$CHOCO_DOTS\"/" "$dotfile"
+    _echo_success
+  fi
   # export a package list at current step
   arch-chroot /mnt pacman -Qe > /mnt/var/log/chocolate_packages_list_06_extra.log
 
