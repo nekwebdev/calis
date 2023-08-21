@@ -20,13 +20,13 @@ CHOCO_ROOT="" # size of root partition, use G or M: 15G or 42500M
 CHOCO_DATA=false # create a data ext4 partition mounted in /data that uses the rest of the available space on the disk
 CHOCO_LUKS=false # LUKS encrypt swap and root partitions
 CHOCO_BTRFS=false # use btrfs for root, @root, @home, @var_log and @snapshots subvolumes will be setup
-CHOCO_SNAPPER=false # configure snapper for automatic snapshots of the @root subvolume.
+CHOCO_SNAPPER=false # configure snapper for automatic snapshots of the @root subvolume
 CHOCO_PROBER=false # probe for other os when configuring grub
 CHOCO_EFI="" # windows efi partition to mount to /boot/efi in chroot for dual boot
 
 # system
 CHOCO_ZEN=false # use the zen kernel
-CHOCO_LTS=false # use the lts kernel, only one can be chose or you'll get an error.
+CHOCO_LTS=false # use the lts kernel, only one can be chose or you'll get an error
 
 # localization
 CHOCO_REGION="Etc/UTC"
@@ -43,7 +43,7 @@ CHOCO_VM=false # install vm drivers
 CHOCO_VGA=false # install vga drivers
 CHOCO_NVIDIA=false # use NVIDIA proprietary drivers
 CHOCO_XORG=false # install xorg-server with vga drivers
-CHOCO_EXTRA=false # run extra configuration and create a privileged user.
+CHOCO_EXTRA=false # run extra configuration and create a privileged user
 CHOCO_USER="" # will ask if left empty
 CHOCO_DOTS="" # url for bare git dotfiles directory.
 CHOCO_CONFIG="" # specify a config file path
@@ -74,16 +74,16 @@ function displayHelp() {
     echo "  Usage:"
     echo "    chocolate.sh"
     echo "    chocolate.sh --config settings.conf"
-    echo "    chocolate.sh --drive sda [--nopart] [--onlypart]" 
-    echo "                [--swap] $CHOCO_SWAP [--swapfile] [--root] 1000M [--data]"
-    echo "                [--luks] [--btrfs] [--snapper] [--prober]"
-    echo "                [--efi] sda1 [--zen] [--lts]"
-    echo "                [--timezone] $CHOCO_REGION [--keymap] $CHOCO_KEYMAP"
-    echo "                [--lang] $CHOCO_LANG [--locale] $CHOCO_LOCALE"
-    echo "                [--vfont] $CHOCO_VFONT [--fontmap] $CHOCO_FONTMAP"
-    echo "                [--hostname] $CHOCO_HOSTNAME"
-    echo "                [--aur] paru [--vm] [--vga] [--nvidia] [--xorg]"
-    echo "                [--extra] [--user] username [--dots] url"
+    echo "    chocolate.sh [--drive] sda [--nopart] [--onlypart]" 
+    echo "                 [--swap] $CHOCO_SWAP [--swapfile] [--root] 1000M [--data]"
+    echo "                 [--luks] [--btrfs] [--snapper] [--prober]"
+    echo "                 [--efi] sda1 [--zen] [--lts]"
+    echo "                 [--timezone] $CHOCO_REGION [--keymap] $CHOCO_KEYMAP"
+    echo "                 [--lang] $CHOCO_LANG [--locale] $CHOCO_LOCALE"
+    echo "                 [--vfont] $CHOCO_VFONT [--fontmap] $CHOCO_FONTMAP"
+    echo "                 [--hostname] $CHOCO_HOSTNAME"
+    echo "                 [--aur] paru [--vm] [--vga] [--nvidia] [--xorg]"
+    echo "                 [--extra] [--user] username [--dots] url"
     echo
     echo "  Options:"
     echo "    -h --help    Show this screen."
@@ -297,7 +297,7 @@ function _echo_banner() {
 }
 
 function _echo_exit_chocolate() {
-  [[ -f ./chocolate.log ]] && cp -f ./chocolate.log /mnt/var/log
+  [[ -f /tmp/chocolate.log ]] && cp -f /tmp/chocolate.log /mnt/var/log
   echo
   _echo_title "Chocolate is done, time to reboot"
   echo
@@ -1267,7 +1267,7 @@ function extraConfig() {
 
   if [[ -n $CHOCO_DOTS ]]; then
     _echo_step "  (Add dotfiles repository url)"
-    sed -i "s/.*CHOCO_DOTS=.*/CHOCO_DOTS=\"$CHOCO_DOTS\"/" "$dotfile"
+    sed -i "s@.*CHOCO_DOTS=.*@CHOCO_DOTS=\"$CHOCO_DOTS\"@" "$dotfile"
     _echo_success
   fi
   # export a package list at current step
@@ -1346,7 +1346,7 @@ if [[ -z $CHOCO_DRIVE ]]; then
   echo
   lsblk -o name,size,type,label,partlabel
   echo
-  _exit_with_message "--drive is required when partitioning, for example '--drive sda"
+  _exit_with_message "--drive is required when partitioning, for example '--drive sda'"
 fi
 
 # if CHOCO_DATA set and not CHOCO_ROOT throw error
@@ -1370,6 +1370,6 @@ $CHOCO_LTS && CHOCO_KERNEL="linux-lts"
     _exit_with_message "Unknown aur helper, use paru or yay"
     ;;
 esac
-main "$@" | tee ./chocolate.log
+main "$@" | tee /tmp/chocolate.log
 
 exit

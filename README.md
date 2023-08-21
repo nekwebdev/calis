@@ -27,6 +27,8 @@ A full hearthy chocolaty arch linux is a 2 step process:
 
 Warning, EFI only for now.
 
+I would advise to make a new github repository from this template to have a clean git history and add your own `.conf` files for your various setups. Here is mine built on this template: [nekwebdev/arch](https://github.com/nekwebdev/arch). Not 100% sure I like those github templates yet...
+
 Boot into an [Arch Linux ISO](https://archlinux.org/download/), [Connect to the internet](https://wiki.archlinux.org/title/installation_guide#Connect_to_the_internet), then clone, download, scp copy, what ever works for you, **inside of /root/**, at least the `chocolate.sh` script. Make sure it is executable then run:
 
     ./chocolate.sh --drive sda
@@ -134,26 +136,18 @@ Options:
 
 ## Extras
 
-When using the `--extra` flag the `extra.sh` file will be copied over to the new system and a new privileged user will be created along with a few tweaks.
-
-All flags given to `chocolate.sh` can be passed to that extra script, this opens a lot of options for your custom `extra.sh`.
+When using the `--extra` flag the `chocodots.sh` script will be copied over to the new system and a new privileged user will be created along with a few tweaks.
 
 It focuses on what needs to happen after a vanilla install:
 
-- Create a user with administrative privileges
-- Install a list of packages from pacman, AUR, pip or git.
 - Pull dotfiles.
-- Configure the system.
+- Run `cocoa.sh`, Configure the system accordingly including installing a list of packages from pacman, AUR, pip or git.
 
-Check the code as each action is handled in it's own function and can be easily modified.
+`cocoa.sh` is included in the companion repository template for bare git dotfiles at [chocodots-template](https://github.com/nekwebdev/chocodots-template). We keep nesting the scripts as dotfiles will run `cocoa.sh` if present, check the repository for more info.
 
-Note that `extra.sh` + `packages.csv` can run on any arch system and has no dependencies on Chocolate.
 
-The companion repository template for bare git dotfiles can be found at [chocodots-template](https://github.com/nekwebdev/chocodots-template). We keep nesting the scripts as dotfiles will run `cocoa.sh` if present, check the repository for more info.
+Thanks to [LARBS](https://github.com/LukeSmithxyz/LARBS) for the inspiration in the `cocoa.sh` script and that smart use of a `csv` file to list all packages.
 
-If you run chocolate as is with `--extra`, it will download this template repository as dotfiles and you will have a suckless based environment with dwm, st, dmenu and surf. This is a good starting point on the various possible configurations and options.
-
-Thanks to [LARBS](https://github.com/LukeSmithxyz/LARBS) for the inspiration in the `extra.sh` script and that smart use of a `csv` file to list all packages.
 ## Asciinema
 
 You can run `./chococinema.sh` before running your `./chocolate.sh ...` command and run `exit` once chocolate is done.
