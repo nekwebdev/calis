@@ -38,34 +38,36 @@ Boot into an [Arch Linux ISO](https://archlinux.org/download/), [Connect to the 
     ./chocolate.sh --help | less
 
 This will get you started with a list of all the available flags and their default values:
+
+```
 Options:
   -h --help    Show this screen.
   --config     Replace script default variables by those from a config file.
-    echo
+
   ############ Paritions setup:
-    echo
+
   --drive      Drive to install the system on. List drives with lsblk
   --nopart     Skips the partitioning part.
-               Chocolate expects your partitions to be mounted in /mnt
+              Chocolate expects your partitions to be mounted in /mnt
   --onlypart   Only format, partition and mount the drive.
   --swap       Swap partition size in G/M, defaults to '2G'
   --swapfile   Create a swapfile instead of a partition.
   --root       Root partition size in G/M, defaults to all remaining space
   --data       Create ext4 partition with the remaining space in /mnt/data.
-               --root must also be set to use data, defaults to false.
+              --root must also be set to use data, defaults to false.
   --luks       Encrypt the root filesystem, defaults to false.
   --btrfs      Use the btrfs filesystem with @root, @home, @var_log and @snapshots subvolumes, defaults to false.
   --snapper    Install and setup snapper for managing btrfs automatic snapshots, defaults to false.
   --prober     Setup grub to use os-prober for multiboot, defaults to false.
   --efi        Mount an existing windows EFI partition before creating the grub config.
-    echo
+
   ############ System setup:
-    echo
+
   --zen        Install the linux-zen kernel, defaults to linux kernel.
   --lts        Install the linux-lts kernel, defaults to linux kernel.
-    echo
+
   ############ Localization setup:
-    echo
+
   --timezone   Region/City for timezone (timedatectl list-timezones | grep ...), defaults to 'Etc/UTC'.
   --keymap     Keyboard keymap code (ls /usr/share/kbd/keymaps/**/*.map.gz | grep ...), defaults to 'us'.
   --lang       Lang code for locale.conf(ls /usr/share/i18n/locales | grep ...), defaults to 'en_US.UTF-8'.
@@ -73,9 +75,9 @@ Options:
   --vfont      Font in use in virtual consoles second number is size, defaults to 'lat1-14'.
   --fontmap    Map in the ISO characters set, defaults to '8859-1'.
   --hostname   System hostname, defaults to 'chocolate'.
-    echo
+
   ############ Options to go slightly past vanilla:
-    echo
+
   --aur        Install an aur helper, either 'paru' or 'yay', defaults to false.
   --vm         Install virtual machine drivers, defaults to false.
   --vga        Install vga drivers, defaults to false.
@@ -85,7 +87,7 @@ Options:
   --user       Username to use, defaults to prompting it.
   --dots       URL for bare git dotfiles directory.
   --pkgs       csv file for the extra script.
-
+```
 ## Adding chocolate to vanilla
 
 1. An install with all the current features:
