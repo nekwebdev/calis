@@ -1,4 +1,4 @@
-# Arch Linux Chocolate install script
+# C.A.L.I.S. - Chocolate Arch Linux Install Script
 
 [![asciicast](https://asciinema.org/a/UMe5VVeVzu8PhWJOYNrwG12c0.svg)](https://asciinema.org/a/UMe5VVeVzu8PhWJOYNrwG12c0)
 

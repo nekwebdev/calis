@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# https://gist.github.com/nekwebdev/906521db55aaa05fcbb6cfa31d7a624e
+# https://github.com/nekwebdev/calis
 # @nekwebdev
 # LICENSE: GPLv3
 #

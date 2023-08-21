@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# https://github.com/nekwebdev/chocolate-template
+# https://github.com/nekwebdev/calis
 # @nekwebdev
 # LICENSE: GPLv3
+#
+# build.sh
+#
+# script to build an Arch Linux ISO with CALIS built in.
+#
 # Inspiration: Erik Dubois
 # https://www.alci.online
 set -e
 
 ###### => variables ############################################################
 buildFolder="/tmp/archiso-tmp"
-outFolder="${HOME}/archlinux-chocoiso-out"
+outFolder="${HOME}/archlinux-calis-out"
 
 ###### => functions ############################################################
 # _echo_step() outputs a step collored in cyan, without outputing a newline.
@@ -30,7 +35,8 @@ function _echo_equals() {
 # _echo_title() outputs a title padded by =, in yellow.
 function _echo_title() {
 	local title=$1
-	local ncols=$(tput cols)
+	local ncols
+	ncols=$(tput cols)
 	local nequals=$(((ncols-${#title})/2-1))
 	tput setaf 3 # 3 = yellow
 	_echo_equals "$nequals"
@@ -82,12 +88,12 @@ EOF
   _echo_step_info "Copy scripts to root home"
   cp chocolate.sh ${buildFolder}/archiso/airootfs/root
   cp chococinema.sh ${buildFolder}/archiso/airootfs/root
-  cp extra.sh ${buildFolder}/archiso/airootfs/root
-  cp packages.csv ${buildFolder}/archiso/airootfs/root
+  cp chocodots.sh ${buildFolder}/archiso/airootfs/root
+  cp ./*.conf ${buildFolder}/archiso/airootfs/root
   FIND='livecd-sound'
   find_and_replace $FIND '  ["/root/chocolate.sh"]="0:0:755"'
   find_and_replace $FIND '  ["/root/chococinema.sh"]="0:0:755"'
-  find_and_replace $FIND '  ["/root/extra.sh"]="0:0:755"'
+  find_and_replace $FIND '  ["/root/chocodots.sh"]="0:0:755"'
   _echo_success
 }
 

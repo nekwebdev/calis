@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# https://github.com/nekwebdev/chocolate-template
+# https://github.com/nekwebdev/calis
 # @nekwebdev
 # LICENSE: GPLv3
-# shellcheck source=/dev/null
+#
+# chocolate.sh
+#
+# script to install Arch Linux.
+#
 set -e
 
 ###### => user variables #######################################################
@@ -25,7 +29,6 @@ CHOCO_ZEN=false # use the zen kernel
 CHOCO_LTS=false # use the lts kernel, only one can be chose or you'll get an error.
 
 # localization
-CHOCO_MIRRORS="United States"
 CHOCO_REGION="Etc/UTC"
 CHOCO_KEYMAP="us"
 CHOCO_LANG="en_US.UTF-8"
@@ -37,8 +40,9 @@ CHOCO_HOSTNAME="chocolate"
 # beyond vanilla
 CHOCO_AUR="" # install an aur helper, yay or paru, will not install if empty
 CHOCO_VM=false # install vm drivers
-CHOCO_XORG=false # install xorg-server with vga drivers
+CHOCO_VGA=false # install vga drivers
 CHOCO_NVIDIA=false # use NVIDIA proprietary drivers
+CHOCO_XORG=false # install xorg-server with vga drivers
 CHOCO_EXTRA=false # run extra configuration and create a privileged user.
 CHOCO_USER="" # will ask if left empty
 CHOCO_DOTS="" # url for bare git dotfiles directory.
@@ -65,21 +69,21 @@ EOF
 ###### => display help screen ##################################################
 function displayHelp() {
     echo "  Description:"
-    echo "    Arch linux Chocolate install script."
+    echo "    CALIS - Chocolate Arch linux Install Script."
     echo
     echo "  Usage:"
     echo "    chocolate.sh"
     echo "    chocolate.sh --config settings.conf"
-    echo "    chocolate.sh --drive nvme0n1 [--nopart] [--onlypart]" 
+    echo "    chocolate.sh --drive sda [--nopart] [--onlypart]" 
     echo "                [--swap] $CHOCO_SWAP [--swapfile] [--root] 1000M [--data]"
     echo "                [--luks] [--btrfs] [--snapper] [--prober]"
     echo "                [--efi] sda1 [--zen] [--lts]"
-    echo "                [--mirrors] $CHOCO_MIRRORS [--timezone] $CHOCO_REGION"
-    echo "                [--keymap] $CHOCO_KEYMAP [--lang] $CHOCO_LANG [--locale] $CHOCO_LOCALE"
+    echo "                [--timezone] $CHOCO_REGION [--keymap] $CHOCO_KEYMAP"
+    echo "                [--lang] $CHOCO_LANG [--locale] $CHOCO_LOCALE"
     echo "                [--vfont] $CHOCO_VFONT [--fontmap] $CHOCO_FONTMAP"
     echo "                [--hostname] $CHOCO_HOSTNAME"
-    echo "                [--aur] paru [--vm] [--xorg] [--nvidia] [--extra] [--user] username"
-    echo "                [--dots] url"
+    echo "                [--aur] paru [--vm] [--vga] [--nvidia] [--xorg]"
+    echo "                [--extra] [--user] username [--dots] url"
     echo
     echo "  Options:"
     echo "    -h --help    Show this screen."
@@ -87,7 +91,7 @@ function displayHelp() {
     echo
     echo "    ############ Paritions setup:"
     echo
-    echo "    --drive      REQUIRED - Drive to install the system on. List drives with lsblk"
+    echo "    --drive      Drive to install the system on. List drives with lsblk"
     echo "    --nopart     Skips the partitioning part."
     echo "                 Chocolate expects your partitions to be mounted in /mnt"
     echo "    --onlypart   Only format, partition and mount the drive."
@@ -95,11 +99,11 @@ function displayHelp() {
     echo "    --swapfile   Create a swapfile instead of a partition."
     echo "    --root       Root partition size in G/M, defaults to all remaining space"
     echo "    --data       Create ext4 partition with the remaining space in /mnt/data."
-    echo "                 --root must also be set to use data, defaults to off."
-    echo "    --luks       Encrypt the root filesystem, defaults to off."
-    echo "    --btrfs      Use the btrfs filesystem with @root, @home, @var_log and @snapshots subvolumes, defaults to off."
-    echo "    --snapper    Install and setup snapper for managing btrfs automatic snapshots, defaults to off."
-    echo "    --prober     Setup grub to use os-prober for multiboot, defaults to off."
+    echo "                 --root must also be set to use data, defaults to false."
+    echo "    --luks       Encrypt the root filesystem, defaults to false."
+    echo "    --btrfs      Use the btrfs filesystem with @root, @home, @var_log and @snapshots subvolumes, defaults to false."
+    echo "    --snapper    Install and setup snapper for managing btrfs automatic snapshots, defaults to false."
+    echo "    --prober     Setup grub to use os-prober for multiboot, defaults to false."
     echo "    --efi        Mount an existing windows EFI partition before creating the grub config."
     echo
     echo "    ############ System setup:"
@@ -109,7 +113,6 @@ function displayHelp() {
     echo
     echo "    ############ Localization setup:"
     echo
-    echo "    --mirrors    Country for reflector mirrors search, defaults to '$CHOCO_MIRRORS'."
     echo "    --timezone   Region/City for timezone (timedatectl list-timezones | grep ...), defaults to '$CHOCO_REGION'."
     echo "    --keymap     Keyboard keymap code (ls /usr/share/kbd/keymaps/**/*.map.gz | grep ...), defaults to '$CHOCO_KEYMAP'."
     echo "    --lang       Lang code for locale.conf(ls /usr/share/i18n/locales | grep ...), defaults to '$CHOCO_LANG'."
@@ -120,10 +123,11 @@ function displayHelp() {
     echo
     echo "    ############ Options to go slightly past vanilla:"
     echo
-    echo "    --aur        Install an aur helper, either 'paru' or 'yay', defaults to off."
-    echo "    --vm         Install virtual machine drivers, defaults to off."
-    echo "    --xorg       Install xorg-server and vga drivers, defaults to off."
-    echo "    --nvidia     Use proprietary NVIDIA drivers, defaults to off."
+    echo "    --aur        Install an aur helper, either 'paru' or 'yay', defaults to false."
+    echo "    --vm         Install virtual machine drivers, defaults to false."
+    echo "    --vga        Install vga drivers, defaults to false."
+    echo "    --nvidia     Use proprietary NVIDIA drivers, defaults to false."
+    echo "    --xorg       Install xorg-server and vga drivers, defaults to false."
     echo "    --extra      Create a user with proper xdg directories and extra configuration."
     echo "    --user       Username to use, defaults to prompting it."
     echo "    --dots       URL for bare git dotfiles directory."
@@ -192,7 +196,7 @@ function _fix_length() {
 
 function _echo_banner() {
   printf '\033c'
-  _echo_title "Arch Linux Chocolate"
+  _echo_title "C.A.L.I.S. - Chocolate Arch Linux Install Script"
   echo
   echo
 
@@ -273,7 +277,7 @@ function _echo_banner() {
 
   _echo_middle "https://wiki.archlinux.org/title/installation_guide"
   echo
-  _echo_middle "Kernel: $CHOCO_KERNEL * Hostname: $CHOCO_HOSTNAME * Keymap: $CHOCO_KEYMAP * Mirrors: $CHOCO_MIRRORS"
+  _echo_middle "Kernel: $CHOCO_KERNEL * Hostname: $CHOCO_HOSTNAME * Keymap: $CHOCO_KEYMAP"
   _echo_middle "Timezone: $CHOCO_REGION * Lang: $CHOCO_LANG * Locale: $CHOCO_LOCALE * Vfont: $CHOCO_VFONT * Fontmap: $CHOCO_FONTMAP"
   echo
   #TODO cleanup drivers
@@ -282,7 +286,9 @@ function _echo_banner() {
   $CHOCO_VM && add_text="$add_text * vm drivers"
   [[ -n $CHOCO_AUR ]] && add_text="$add_text * $CHOCO_AUR"
   $CHOCO_XORG && add_text="$add_text * xorg-server"
-  $CHOCO_NVIDIA && add_text="$add_text * NVIDIA prorietary drivers" || add_text="$add_text * opensource vga drivers"
+  if $CHOCO_VGA || $CHOCO_XORG; then
+    $CHOCO_NVIDIA && add_text="$add_text * NVIDIA prorietary drivers" || add_text="$add_text * opensource vga drivers"
+  fi
   $CHOCO_EXTRA && add_text="$add_text * extra configuration"
   [[ -n $CHOCO_USER ]] && add_text="$add_text * Create user: $CHOCO_USER"
   [[ -n $add_text ]] && _echo_middle "Post vanilla:$add_text" && echo
@@ -342,16 +348,10 @@ function parseArguments() {
         if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
           CHOCO_EFI=$2; shift
         else
-          _exit_with_message "when using --efi a drive needs to be specified. Example: '--efi sda1'"
+          _exit_with_message "when using --efi a partition needs to be specified. Example: '--efi sda1'"
         fi ;;
       --zen) CHOCO_ZEN=true; shift ;;
       --lts) CHOCO_LTS=true; shift ;;
-      --mirrors)
-        if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
-          CHOCO_MIRRORS=$2; shift
-        else
-          _exit_with_message "when using --mirrors a country to look for mirrors must be specified. Example: '--mirrors 'Switzerland''"
-        fi ;;
       --timezone)
         if [[ -n "$2" ]] && [[ "${2:0:1}" != "-" ]]; then
           CHOCO_REGION=$2; shift
@@ -402,6 +402,7 @@ function parseArguments() {
         fi ;;
       --vm) CHOCO_VM=true; shift ;;
       --xorg) CHOCO_XORG=true; shift ;;
+      --vga) CHOCO_VGA=true; shift ;;
       --nvidia) CHOCO_NVIDIA=true; shift ;;
       --extra) CHOCO_EXTRA=true; shift ;;
       --user)
@@ -936,11 +937,6 @@ function installVanilla() {
   _echo_step "Installation"; echo; echo
 
   # https://wiki.archlinux.org/title/installation_guide#Select_the_mirrors
-  # _echo_step_info "Select the mirrors in $CHOCO_MIRRORS"; echo
-  # [[ ! -f .reflector_done ]] && reflector --country "$CHOCO_MIRRORS" --latest 20 --sort rate --save /etc/pacman.d/mirrorlist --protocol https --download-timeout 5
-  # touch .reflector_done
-  # _echo_success
-
   # different method
   _echo_step_info "Select fastest 10 mirrors"; echo
   cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
@@ -1146,7 +1142,7 @@ EOF
 }
 
 function installXorg() {
-  ! $CHOCO_XORG && return
+  vgaDrivers
   _echo_step "Install xorg server"; echo; echo
   installChrootPkg xorg-server
   _echo_success
@@ -1313,9 +1309,9 @@ function main() {
 
   installAurHelper
 
-  vgaDrivers
+  $CHOCO_VGA && vgaDrivers
 
-  installXorg
+  $CHOCO_XORG && installXorg
 
   extraConfig
 
@@ -1334,6 +1330,7 @@ function main() {
 parseArguments "$@"
 
 # source config file for default values
+# shellcheck source=/dev/null
 [[ -f $CHOCO_CONFIG ]] && source "$CHOCO_CONFIG"
 
 # check arguments sanity
@@ -1349,7 +1346,7 @@ if [[ -z $CHOCO_DRIVE ]]; then
   echo
   lsblk -o name,size,type,label,partlabel
   echo
-  _exit_with_message "--drive is required, for example '--drive nvme0n1"
+  _exit_with_message "--drive is required when partitioning, for example '--drive sda"
 fi
 
 # if CHOCO_DATA set and not CHOCO_ROOT throw error
