@@ -19,6 +19,10 @@ A full hearthy chocolaty arch linux is a 2 step process:
 * Setup a vanilla system with `chocolate.sh` and a choice of extra milk by setting up a user and preparing the system.
 * Using `chocodots.sh` at reboot to sprinkle some `cocoa.sh` from your [dotfiles](https://github.com/nekwebdev/chocodots-template).
 
+**NOTE:** On an Arch Linux based system you can run `build.sh` to build an Arch Linux ISO with the scripts copied in /root and with a password of `root` set for the root user so you can ssh directly into the system and get things going in one command:
+
+    ssh root@machine_ip "/root/chocolate.sh --drive ..."
+
 ## So how does it work?
 
 Warning, EFI only for now.
@@ -34,56 +38,53 @@ Boot into an [Arch Linux ISO](https://archlinux.org/download/), [Connect to the 
     ./chocolate.sh --help | less
 
 This will get you started with a list of all the available flags and their default values:
-
-    Options:
-    -h --help    Show this screen.
-    --config     Replace script default variables by those from a config file.
-
-    ############ Paritions setup:
-
-    --drive      REQUIRED - Drive to install the system on. List drives with lsblk
-    --nopart     Skips the partitioning part.
-                 Chocolate expects your partitions to be mounted in /mnt
-    --onlypart   Only format, partition and mount the drive.
-    --swap       Swap partition size in G/M, defaults to '2G'
-    --swapfile   Create a swapfile instead of a partition.
-    --root       Root partition size in G/M, defaults to all remaining space
-    --data       Create ext4 partition with the remaining space in /mnt/data.
-                 --root must also be set to use data, defaults to off.
-    --luks       Encrypt the root filesystem, defaults to off.
-    --btrfs      Use the btrfs filesystem with @root, @home, @var_log and @snapshots subvolumes, defaults to off.
-    --snapper    Install and setup snapper for managing btrfs automatic snapshots, defaults to off.
-    --prober     Setup grub to use os-prober for multiboot, defaults to off.
-    --efi        Mount an existing windows EFI partition before creating the grub config.
-
-    ############ System setup:
-
-    --zen        Install the linux-zen kernel, defaults to linux kernel.
-    --lts        Install the linux-lts kernel, defaults to linux kernel.
-
-    ############ Localization setup:
-
-    --mirrors    Country for reflector mirrors search, defaults to 'United States'.
-    --timezone   Region/City for timezone (timedatectl list-timezones | grep ...), defaults to 'Etc/UTC'.
-    --keymap     Keyboard keymap code (ls /usr/share/kbd/keymaps/**/*.map.gz | grep ...), defaults to 'us'.
-    --lang       Lang code for locale.conf(ls /usr/share/i18n/locales | grep ...), defaults to 'en_US.UTF-8'.
-    --locale     List of other locales to generate along with 'en_US.UTF-8', defaults to 'UTF-8'.
-    --vfont      Font in use in virtual consoles second number is size, defaults to 'lat1-14'.
-    --fontmap    Map in the ISO characters set, defaults to '8859-1'.
-    --hostname   System hostname, defaults to 'chocolate'.
-
-    ############ Options to go slightly past vanilla:
-
-    --aur        Install an aur helper, either 'paru' or 'yay', defaults to off.
-    --vm         Install virtual machine drivers, defaults to off.
-    --xorg       Install xorg-server and vga drivers, defaults to off.
-    --nvidia     Use proprietary NVIDIA drivers, defaults to off.
-    --extra      Run an extra script chrooted as root in /mnt at the end, defaults to off.
-                 All arguments given to chocolate.sh will be passed to that script.
-
-**NOTE:** On an Arch Linux based system you can run `build.sh` to build an Arch Linux ISO with the scripts copied in /root and with a password of `root` set for the root user so you can ssh directly into the system and get things going in one command:
-
-    ssh root@machine_ip "/root/chocolate.sh --drive ..."
+Options:
+  -h --help    Show this screen.
+  --config     Replace script default variables by those from a config file.
+    echo
+  ############ Paritions setup:
+    echo
+  --drive      Drive to install the system on. List drives with lsblk
+  --nopart     Skips the partitioning part.
+               Chocolate expects your partitions to be mounted in /mnt
+  --onlypart   Only format, partition and mount the drive.
+  --swap       Swap partition size in G/M, defaults to '2G'
+  --swapfile   Create a swapfile instead of a partition.
+  --root       Root partition size in G/M, defaults to all remaining space
+  --data       Create ext4 partition with the remaining space in /mnt/data.
+               --root must also be set to use data, defaults to false.
+  --luks       Encrypt the root filesystem, defaults to false.
+  --btrfs      Use the btrfs filesystem with @root, @home, @var_log and @snapshots subvolumes, defaults to false.
+  --snapper    Install and setup snapper for managing btrfs automatic snapshots, defaults to false.
+  --prober     Setup grub to use os-prober for multiboot, defaults to false.
+  --efi        Mount an existing windows EFI partition before creating the grub config.
+    echo
+  ############ System setup:
+    echo
+  --zen        Install the linux-zen kernel, defaults to linux kernel.
+  --lts        Install the linux-lts kernel, defaults to linux kernel.
+    echo
+  ############ Localization setup:
+    echo
+  --timezone   Region/City for timezone (timedatectl list-timezones | grep ...), defaults to 'Etc/UTC'.
+  --keymap     Keyboard keymap code (ls /usr/share/kbd/keymaps/**/*.map.gz | grep ...), defaults to 'us'.
+  --lang       Lang code for locale.conf(ls /usr/share/i18n/locales | grep ...), defaults to 'en_US.UTF-8'.
+  --locale     List of other locales to generate along with '$CHOCO_LANG', defaults to 'UTF-8'.
+  --vfont      Font in use in virtual consoles second number is size, defaults to 'lat1-14'.
+  --fontmap    Map in the ISO characters set, defaults to '8859-1'.
+  --hostname   System hostname, defaults to 'chocolate'.
+    echo
+  ############ Options to go slightly past vanilla:
+    echo
+  --aur        Install an aur helper, either 'paru' or 'yay', defaults to false.
+  --vm         Install virtual machine drivers, defaults to false.
+  --vga        Install vga drivers, defaults to false.
+  --nvidia     Use proprietary NVIDIA drivers, defaults to false.
+  --xorg       Install xorg-server and vga drivers, defaults to false.
+  --extra      Create a user with proper xdg directories and extra configuration.
+  --user       Username to use, defaults to prompting it.
+  --dots       URL for bare git dotfiles directory.
+  --pkgs       csv file for the extra script.
 
 ## Adding chocolate to vanilla
 
