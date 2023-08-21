@@ -10,17 +10,14 @@ Short awnser yes, long one is that I could not find an installer that did just w
 
 Objective is to install arch linux without going throuh dozens of lines of configuration for a script. Defaults are sensible and using flags can easily customize it to your liking.
 
-Chocolate will only ask for relevent passwords, everything else should be set by flags, or by editing `chocolate.sh` directly and changing some of the defaults to limit the use of flags.
-
-There is also a config file option, see the examples below.
+Chocolate will only ask for relevent passwords, everything else should be set by flags, or better yet using the config file option, see the examples below.
 
 Chocolate will follow the [Arch Wiki installation guide](https://wiki.archlinux.org/title/installation_guide) step by step to be as vanilla as possilbe.
 
-A full hearthy chocolaty arch linux is a 3 step process:
+A full hearthy chocolaty arch linux is a 2 step process:
 
-* Setup a vanilla system with `chocolate.sh`
-* Add extra milk by setting up a user and preparing the system with `extra.sh`
-* Sprinkle some `cocoa.sh` from your [dotfiles](https://github.com/nekwebdev/chocodots-template).
+* Setup a vanilla system with `chocolate.sh` and a choice of extra milk by setting up a user and preparing the system.
+* Using `chocodots.sh` at reboot to sprinkle some `cocoa.sh` from your [dotfiles](https://github.com/nekwebdev/chocodots-template).
 
 ## So how does it work?
 
