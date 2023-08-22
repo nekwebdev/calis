@@ -58,6 +58,8 @@ done
 ###### => main #################################################################
 function main() {
   # main steps
+  mkdir -p "$HOME/.local/{src,bin,share,log}"
+
   local work_tree="$HOME"
   local git_dir="$work_tree/.config/dotfiles"
   local dots="/usr/bin/git --git-dir=$git_dir --work-tree=$work_tree"
@@ -78,7 +80,7 @@ function main() {
   if [[ -n $CHOCO_DOTS ]]; then
     _echo_step "  (Pull main branch from $CHOCO_DOTS)"; echo
     $dots branch -m main
-    $dots pull --set-upstream origin main
+    $dots pull origin main
     _echo_success
   fi
   echo

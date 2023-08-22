@@ -1165,7 +1165,7 @@ function configureXdgUserDirs() {
   _echo_success
 
   _echo_step "  (Add .local/src folder to /etc/skel)"
-  mkdir -p /mnt/etc/skel/.local/src
+  mkdir -p /mnt/etc/skel/.local/{src,bin,share,log}
   _echo_success; echo
 }
 
