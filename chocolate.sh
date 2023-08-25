@@ -247,15 +247,18 @@ function _echo_banner() {
     _fix_length "$root_text"
     root_text="$FIX_LENGTH_TXT"
 
-    if [[ -n $CHOCO_EFI ]]; then
-      local efi_text=""
-      _fix_length "* Mount /dev/$CHOCO_EFI in /boot/efi for grub"
-      efi_text="$FIX_LENGTH_TXT"
-    fi
-
     _fix_length ""
     data_text="$FIX_LENGTH_TXT"
   fi
+
+  local efi_text=""
+  if [[ -n $CHOCO_EFI ]]; then
+    _fix_length "* Mount /dev/$CHOCO_EFI in /boot/efi for grub"
+  else
+    _fix_length "$efi_text"
+  fi
+  efi_text="$FIX_LENGTH_TXT"
+  
 
   _echo_middle "      ██    ██    ██                                                            "
   _echo_middle "    ██      ██  ██                                                              "
@@ -1279,13 +1282,13 @@ function extraConfig() {
 
 function chaoticConfig() {
   _echo_step "Setting up chaotic-aur"; echo
-  _echo_step "  (Copy keyring and mirrorlist)"
+  _echo_step "  (Copy keyring and mirrorlist)"; echo
   arch-chroot /mnt pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
   arch-chroot /mnt pacman-key --lsign-key 3056513887B78AEB
-  arch-chroot /mnt pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' \
+  arch-chroot /mnt pacman --noconfirm -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' \
   'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
   _echo_success
-  
+
   _echo_step "  (Append to /etc/pacman.conf)"
   echo "[chaotic-aur]" >> /mnt/etc/pacman.conf
   echo "Include = /etc/pacman.d/chaotic-mirrorlist" >> /mnt/etc/pacman.conf
