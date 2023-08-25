@@ -88,13 +88,13 @@ Options:
   --extra      Create a user with proper xdg directories and extra configuration.
   --user       Username to use, defaults to prompting it.
   --dots       URL for bare git dotfiles directory.
-  --pkgs       csv file for the extra script.
+  --chaotic    Install the chaotic-aur repository.
 ```
 ## Adding chocolate to vanilla
 
 1. An install with all the current features:
 
-        ./chocolate.sh --drive vda --swap 3G --root 15G --data --luks --btrfs --snapper --prober --zen --aur yay --vm --xorg --nvidia --extra
+        ./chocolate.sh --drive vda --swap 3G --root 15G --data --luks --btrfs --snapper --prober --zen --aur yay --vm --xorg --nvidia --extra --chaotic --user --dots https://gitrepository
 
     For partitions, swap will be set to 3G, root to 15G and the rest of the drive will be formatted as ext4 and mounted to /data.
     

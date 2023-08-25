@@ -47,6 +47,7 @@ CHOCO_EXTRA=false # run extra configuration and create a privileged user
 CHOCO_USER="" # will ask if left empty
 CHOCO_DOTS="" # url for bare git dotfiles directory.
 CHOCO_CONFIG="" # specify a config file path
+CHOCO_CHAOTIC=false # install the chaotic-aur repository
 
 ###### => files templates ######################################################
 # exmple file templates
@@ -83,7 +84,7 @@ function displayHelp() {
     echo "                 [--vfont] $CHOCO_VFONT [--fontmap] $CHOCO_FONTMAP"
     echo "                 [--hostname] $CHOCO_HOSTNAME"
     echo "                 [--aur] paru [--vm] [--vga] [--nvidia] [--xorg]"
-    echo "                 [--extra] [--user] username [--dots] url"
+    echo "                 [--extra] [--user] username [--dots] url [--chaotic]"
     echo
     echo "  Options:"
     echo "    -h --help    Show this screen."
@@ -131,7 +132,7 @@ function displayHelp() {
     echo "    --extra      Create a user with proper xdg directories and extra configuration."
     echo "    --user       Username to use, defaults to prompting it."
     echo "    --dots       URL for bare git dotfiles directory."
-    echo "    --pkgs       csv file for the extra script."
+    echo "    --chaotic    Install the chaotic-aur repository."
     echo
 }
 
@@ -291,6 +292,7 @@ function _echo_banner() {
   fi
   $CHOCO_EXTRA && add_text="$add_text * extra configuration"
   [[ -n $CHOCO_USER ]] && add_text="$add_text * Create user: $CHOCO_USER"
+  $CHOCO_CHAOTIC && add_text="$add_text * chaotic-aur"
   [[ -n $add_text ]] && _echo_middle "Post vanilla:$add_text" && echo
   _echo_middle "* This is the way *"
   echo
@@ -405,6 +407,7 @@ function parseArguments() {
       --vga) CHOCO_VGA=true; shift ;;
       --nvidia) CHOCO_NVIDIA=true; shift ;;
       --extra) CHOCO_EXTRA=true; shift ;;
+      --chaotic) CHOCO_CHAOTIC=true; shift ;;
       --user)
         if [ -n "$2" ] && [ "${2:0:1}" != "-" ]; then
           CHOCO_USER=$2; shift
@@ -1215,7 +1218,6 @@ function configurePrivilegedUser() {
 }
 
 function extraConfig() {
-  ! $CHOCO_EXTRA && return
   _echo_title "Run extra setup in arch-chroot"; echo
 
   _echo_step "Ensure we are root and have internet by installing script dependencies"; echo
@@ -1272,7 +1274,22 @@ function extraConfig() {
   fi
   # export a package list at current step
   arch-chroot /mnt pacman -Qe > /mnt/var/log/chocolate_packages_list_06_extra.log
+  echo
+}
 
+function chaoticConfig() {
+  _echo_step "Setting up chaotic-aur"; echo
+  _echo_step "  (Copy keyring and mirrorlist)"
+  arch-chroot /mnt pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
+  arch-chroot /mnt pacman-key --lsign-key 3056513887B78AEB
+  arch-chroot /mnt pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' \
+  'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
+  _echo_success
+  
+  _echo_step "  (Append to /etc/pacman.conf)"
+  echo "[chaotic-aur]" >> /mnt/etc/pacman.conf
+  echo "Include = /etc/pacman.d/chaotic-mirrorlist" >> /mnt/etc/pacman.conf
+  _echo_success; echo
 }
 
 ###### => main #################################################################
@@ -1313,7 +1330,9 @@ function main() {
 
   $CHOCO_XORG && installXorg
 
-  extraConfig
+  $CHOCO_EXTRA && extraConfig
+
+  $CHOCO_CHAOTIC && chaoticConfig
 
   snapperConfig
 
